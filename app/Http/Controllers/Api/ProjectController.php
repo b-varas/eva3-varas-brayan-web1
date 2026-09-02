@@ -47,12 +47,25 @@ class ProjectController extends Controller
     }
 
     
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, string $id)
     {
-        //
+        $proyecto = Project::find($id);
+
+        if (!$proyecto) {
+            return response()->json(['message' => 'Proyecto no encontrado'], 404);
+        }
+
+        $validado = $request->validate([
+            'nombre' => 'required|string|max:150',
+            'fecha_inicio' => 'required|date',
+            'estado' => 'required|string|max:50',
+            'responsable' => 'required|string|max:150',
+            'monto' => 'required|numeric|min:0',
+        ]);
+
+        $proyecto->update($validado);
+
+        return response()->json($proyecto, 200);
     }
 
     /**

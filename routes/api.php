@@ -9,5 +9,7 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::get('/proyectos/{id}', [ProjectController::class, 'show']);
+Route::patch('/proyectos/{id}', [ProjectController::class, 'update']);
+Route::put('/proyectos/{id}', [ProjectController::class, 'update']);
 Route::post('/proyectos', [ProjectController::class, 'store']);
 Route::get('/proyectos', [ProjectController::class, 'index']);
