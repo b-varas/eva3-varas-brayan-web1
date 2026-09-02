@@ -68,11 +68,16 @@ class ProjectController extends Controller
         return response()->json($proyecto, 200);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(string $id)
     {
-        //
+        $proyecto = Project::find($id);
+
+        if (!$proyecto) {
+            return response()->json(['message' => 'Proyecto no encontrado'], 404);
+        }
+
+        $proyecto->delete();
+
+        return response()->json(null, 204);
     }
 }

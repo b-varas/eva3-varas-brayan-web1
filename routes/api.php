@@ -13,3 +13,4 @@ Route::patch('/proyectos/{id}', [ProjectController::class, 'update']);
 Route::put('/proyectos/{id}', [ProjectController::class, 'update']);
 Route::post('/proyectos', [ProjectController::class, 'store']);
 Route::get('/proyectos', [ProjectController::class, 'index']);
+Route::delete('/proyectos/{id}', [ProjectController::class, 'destroy']);
