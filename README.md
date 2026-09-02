@@ -1,37 +1,32 @@
 # Sistema de Gestión de Proyectos — Tech Solutions Group
 
-Evaluación sumativa Unidad 2 — Framework Web (Laravel 11 / PHP 8.3)
-*(construida sobre la base de la Unidad 1 — CRUD de proyectos con MVC)*
-
-**Nombre del equipo:** The IT Crowd
+Evaluación sumativa Unidad 3 — Framework Web (Laravel 11 / PHP 8.3)
+*(construida sobre la base de la Unidad 2 — CRUD de proyectos con MVC y autenticación)*
 
 **Integrantes:** Eduardo Palma - Luis Muñoz - Brayan Varas
 
-Aplicación web para la gestión de proyectos de Tech Solutions. En esta unidad se incorpora conexión real a base de datos vía ORM (Eloquent), autenticación de usuarios y cifrado de contraseñas, sobre la base MVC ya construida en la Unidad 1.
+Aplicación web para la gestión de proyectos de Tech Solutions. En esta unidad se incorpora una **API REST** para el CRUD de proyectos, además del CRUD web ya construido en unidades anteriores, cumpliendo con los métodos HTTP y códigos de estado estándar.
 
 ## Contenido
 - [Descripción](#descripción)
 - [Tecnologías](#tecnologías)
 - [Instalación](#instalación)
 - [Configuración de Base de Datos](#configuración-de-base-de-datos)
-- [Autenticación y Cifrado](#autenticación-y-cifrado)
-- [Rutas disponibles](#rutas-disponibles)
+- [Endpoints de la API REST](#endpoints-de-la-api-rest)
+- [Rutas web disponibles](#rutas-web-disponibles)
 - [Arquitectura (MVC)](#arquitectura-mvc)
-- [Patrones de diseño utilizados](#patrones-de-diseño-utilizados)
-- [Componente reutilizable: Valor UF del día](#componente-reutilizable-valor-uf-del-día)
-- [Estándares de desarrollo web aplicados](#estándares-de-desarrollo-web-aplicados)
+- [Validaciones y manejo de errores](#validaciones-y-manejo-de-errores)
+- [Cómo probar la API](#cómo-probar-la-api)
 
 ## Descripción
 
-La aplicación permite administrar proyectos (listar, ver, crear, actualizar y eliminar) y gestionar usuarios mediante registro e inicio de sesión, cumpliendo los siguientes requerimientos:
+La aplicación permite administrar proyectos (listar, ver, crear, actualizar y eliminar) tanto por interfaz web (con vistas y sesión) como mediante una **API REST** que devuelve JSON, cumpliendo los siguientes requerimientos:
 
-- Conexión real a base de datos MySQL mediante el ORM Eloquent de Laravel.
-- Registro e inicio de sesión de usuarios, con validación de credenciales.
-- Cifrado de contraseñas (bcrypt, vía `Hash::make()`), nunca se almacenan en texto plano.
-- CRUD completo de proyectos (id, nombre, fecha de inicio, estado, responsable, monto, usuario creador), ahora persistido en base de datos real.
-- Rutas de gestión de proyectos protegidas: solo usuarios autenticados pueden acceder.
-- Vistas con estilos básicos y mensajes de confirmación tipo pop-up.
-- Componente reutilizable que consume un servicio externo (API de indicadores económicos) para mostrar el valor de la UF del día, con respaldo simulado si el servicio no está disponible.
+- Inserción de nuevos proyectos vía método HTTP `POST`, con validación de campos requeridos y código de respuesta `201`.
+- Recuperación de todos los proyectos vía método HTTP `GET`, con código `200` y arreglo vacío si no hay registros.
+- Recuperación de un proyecto por su ID vía `GET`, con código `200` si existe o `404` si no.
+- Actualización de un proyecto por su ID vía `PUT`/`PATCH`, con código `200` y devolviendo los campos actualizados.
+- Eliminación de un proyecto por su ID vía `DELETE`, de forma segura (verificando existencia previa) y eficiente, con código `204` y respuesta vacía.
 
 ## Tecnologías
 
@@ -39,28 +34,25 @@ La aplicación permite administrar proyectos (listar, ver, crear, actualizar y e
 - Laravel 11
 - Eloquent ORM
 - MySQL 8
-- Blade (motor de plantillas)
-- JavaScript básico (pop-ups de notificación)
-- CSS propio (sin frameworks externos)
+- Laravel Sanctum (scaffolding de API instalado, sin autenticación por token implementada en esta entrega)
+- Postman (para pruebas de los endpoints)
 
 ## Instalación
 
 ```bash
-git clone <url-del-repositorio>
-cd eva2-varas-brayan-web1
+git clone https://github.com/b-varas/eva3-varas-brayan-web1.git
+cd eva3-varas-brayan-web1
 composer install
 cp .env.example .env
 php artisan key:generate
 ```
 
-Configura tu base de datos en `.env` (ver sección siguiente), crea la base de datos en MySQL, y luego:
+Configura tu base de datos en `.env` (ver sección siguiente), crea la base de datos en MySQL si aún no existe, y luego:
 
 ```bash
 php artisan migrate
 php artisan serve
 ```
-
-Luego visita `http://127.0.0.1:8000/login` para iniciar sesión, o `http://127.0.0.1:8000/registro` para crear una cuenta nueva.
 
 ## Configuración de Base de Datos
 
@@ -81,96 +73,70 @@ Antes de ejecutar `php artisan migrate`, la base de datos debe existir en el ser
 CREATE DATABASE desarrollo_software_web_1;
 ```
 
-Las migraciones (`database/migrations/`) definen la estructura de las tablas:
-- `users` — usuarios del sistema (incluida por defecto en Laravel).
-- `projects` — proyectos gestionados, con llave foránea `created_by` hacia `users`.
+## Endpoints de la API REST
 
-## Autenticación y Cifrado
+Todas las rutas de la API viven bajo el prefijo `/api`, definido en `routes/api.php`, y son gestionadas por `app/Http/Controllers/Api/ProjectController.php`.
 
-La autenticación se implementa en `app/Http/Controllers/AuthController.php`, con dos flujos principales:
-
-**Registro (`register()`):**
-- Valida los datos de entrada (nombre, correo único, contraseña con confirmación).
-- Cifra la contraseña con `Hash::make()` (algoritmo bcrypt) antes de guardarla — nunca se almacena en texto plano.
-- Inicia sesión automáticamente tras un registro exitoso.
-
-**Inicio de sesión (`login()`):**
-- Valida las credenciales usando `Auth::attempt()`, que compara internamente el hash de la contraseña ingresada contra el hash almacenado, sin exponer ni descifrar la contraseña original en ningún momento.
-- Regenera el identificador de sesión tras un login exitoso (prevención de session fixation).
-
-**Cierre de sesión (`logout()`):** invalida la sesión activa y regenera el token CSRF.
-
-Las rutas de gestión de proyectos (`/proyectos/*`) están protegidas con el middleware `auth`: un usuario sin sesión iniciada es redirigido automáticamente a `/login`. Cada proyecto creado registra el `id` del usuario autenticado en el campo `created_by`.
-
-## Rutas disponibles
-
-| Acción | Verbo | Ruta | Nombre | Controlador |
+| Acción | Verbo | Ruta | Código éxito | Código si no existe |
 |---|---|---|---|---|
-| Mostrar formulario de registro | GET | `/registro` | `register` | `AuthController@showRegister` |
-| Procesar registro | POST | `/registro` | `register.store` | `AuthController@register` |
-| Mostrar formulario de login | GET | `/login` | `login` | `AuthController@showLogin` |
-| Procesar login | POST | `/login` | `login.store` | `AuthController@login` |
-| Cerrar sesión | POST | `/logout` | `logout` | `AuthController@logout` |
-| Listar proyectos *(requiere sesión)* | GET | `/proyectos` | `projects.index` | `ProjectController@index` |
-| Formulario crear *(requiere sesión)* | GET | `/proyectos/crear` | `projects.create` | `ProjectController@create` |
-| Guardar proyecto *(requiere sesión)* | POST | `/proyectos` | `projects.store` | `ProjectController@store` |
-| Formulario editar *(requiere sesión)* | GET | `/proyectos/{id}/editar` | `projects.edit` | `ProjectController@edit` |
-| Actualizar proyecto *(requiere sesión)* | PUT | `/proyectos/{id}` | `projects.update` | `ProjectController@update` |
-| Confirmar eliminación *(requiere sesión)* | GET | `/proyectos/{id}/eliminar` | `projects.confirmDelete` | `ProjectController@confirmDelete` |
-| Eliminar proyecto *(requiere sesión)* | DELETE | `/proyectos/{id}` | `projects.destroy` | `ProjectController@destroy` |
-| Obtener proyecto por id *(requiere sesión)* | GET | `/proyectos/{id}` | `projects.show` | `ProjectController@show` |
+| Crear proyecto | `POST` | `/api/proyectos` | `201` | — |
+| Listar todos los proyectos | `GET` | `/api/proyectos` | `200` | — |
+| Buscar proyecto por ID | `GET` | `/api/proyectos/{id}` | `200` | `404` |
+| Actualizar proyecto | `PUT` / `PATCH` | `/api/proyectos/{id}` | `200` | `404` |
+| Eliminar proyecto | `DELETE` | `/api/proyectos/{id}` | `204` | `404` |
 
-Las rutas con parámetro `{id}` están restringidas con `whereNumber()` para aceptar solo valores numéricos, evitando errores por parámetros inválidos.
+### Campos del proyecto
+
+| Campo | Tipo | Requerido |
+|---|---|---|
+| `nombre` | string | Sí |
+| `fecha_inicio` | date | Sí |
+| `estado` | string | Sí |
+| `responsable` | string | Sí |
+| `monto` | numeric | Sí |
+| `created_by` | integer (ID de usuario existente) | Sí, solo en creación |
+
+## Rutas web disponibles
+
+Además de la API, se mantiene el CRUD web con sesión (heredado de la Unidad 2), protegido con el middleware `auth`. Ver `routes/web.php` para el detalle completo (login, registro, y CRUD de proyectos vía formularios).
 
 ## Arquitectura (MVC)
 
 - **Modelos** (`app/Models/`):
-  - `User.php` — modelo Eloquent estándar de Laravel, con contraseña cifrada automáticamente vía cast (`'password' => 'hashed'`) y reforzada explícitamente en el controlador con `Hash::make()`.
-  - `Project.php` — modelo Eloquent que representa la tabla `projects`, con relación `belongsTo` hacia `User` a través de `created_by`. *(En la Unidad 1 este modelo usaba datos estáticos en sesión; en la Unidad 2 se migró a Eloquent con persistencia real en MySQL.)*
+  - `Project.php` — modelo Eloquent con `$fillable` definido para prevenir mass assignment, y relación `belongsTo` hacia `User` mediante `created_by`.
 - **Controladores** (`app/Http/Controllers/`):
-  - `AuthController.php` — gestiona registro, login y logout.
-  - `ProjectController.php` — recibe las peticiones HTTP, valida los datos de entrada y coordina la comunicación entre el modelo y las vistas.
-- **Vistas** (`resources/views/`):
-  - `auth/login.blade.php`, `auth/register.blade.php` — formularios de autenticación.
-  - `projects/*.blade.php` — vistas del CRUD de proyectos.
-  - Todas heredan una estructura común desde `layouts/app.blade.php`, que incluye el estado de sesión del usuario (nombre y botón de cerrar sesión) cuando corresponde.
+  - `ProjectController.php` — CRUD web con vistas Blade.
+  - `Api/ProjectController.php` — CRUD vía API, responde JSON con los códigos de estado HTTP definidos en los requerimientos.
+- **Rutas**:
+  - `routes/web.php` — rutas del CRUD web.
+  - `routes/api.php` — rutas de la API REST (prefijo `/api` automático).
 
-## Patrones de diseño utilizados
+## Validaciones y manejo de errores
 
-| Patrón | Dónde se aplica |
-|---|---|
-| MVC (Model-View-Controller) | Estructura general del proyecto |
-| Front Controller / Router | `routes/web.php` distribuye cada petición al controlador correspondiente |
-| ORM (Active Record) | `Project` y `User` extienden `Eloquent Model`, mapeando filas de BD a objetos PHP |
-| Middleware | `auth` y `guest` filtran el acceso a rutas según el estado de sesión |
-| Inyección de dependencias | `UfWidget` recibe `UfService` automáticamente vía el constructor |
-| Service Layer | `UfService` aísla la lógica de consumo de la API externa |
-| Component Pattern | `<x-uf-widget />`, componente Blade reutilizable en todas las vistas |
-| Template Method | `layouts/app.blade.php` con `@yield`, completado por cada vista hija |
+- Todos los campos son validados con `$request->validate()` antes de insertar o actualizar, devolviendo automáticamente código `422` con el detalle del error si algún campo requerido falta o tiene un tipo inválido.
+- El campo `created_by` se valida además con la regla `exists:users,id`, asegurando que solo se pueda asociar un proyecto a un usuario que realmente existe en la base de datos.
+- En `show`, `update` y `destroy`, se verifica primero la existencia del proyecto (`Project::find($id)`) antes de continuar, devolviendo `404` con un mensaje descriptivo si no se encuentra.
 
-## Componente reutilizable: Valor UF del día
+## Cómo probar la API
 
-`app/Services/UfService.php` consulta la API pública `mindicador.cl`. Si el servicio no responde (sin conexión, timeout, error del servidor), se entrega automáticamente un valor simulado, evitando que la aplicación falle.
+Se recomienda usar Postman. Para cada endpoint:
 
-`app/View/Components/UfWidget.php` expone este servicio como componente Blade:
+1. Configura el método HTTP correspondiente (POST, GET, PUT/PATCH, DELETE).
+2. En **Headers**, agrega `Content-Type: application/json` y `Accept: application/json`.
+3. En **Body → raw → JSON**, incluye los campos requeridos según la tabla de campos.
 
-```blade
-<x-uf-widget />
+Ejemplo de creación de un proyecto (`POST /api/proyectos`):
+
+```json
+{
+    "nombre": "Sistema de Inventario",
+    "fecha_inicio": "2026-01-15",
+    "estado": "activo",
+    "responsable": "Juan Perez",
+    "monto": 5000,
+    "created_by": 2
+}
 ```
 
-Se incluye una única vez en el layout compartido, por lo que aparece en todas las vistas del módulo sin duplicar código.
-
-## Estándares de desarrollo web aplicados
-
-- Verbos HTTP semánticos (GET, POST, PUT, DELETE) mediante `@method()` en los formularios.
-- Protección CSRF (`@csrf`) en todos los formularios, incluido el de cierre de sesión.
-- Validación server-side (`$request->validate()`), incluyendo unicidad de correo y confirmación de contraseña.
-- Cifrado de contraseñas mediante bcrypt (`Hash::make()`), nunca en texto plano.
-- Autenticación mediante `Auth::attempt()`, sin comparación manual de credenciales.
-- Protección de rutas sensibles mediante middleware (`auth` / `guest`).
-- Rutas nombradas (`route()`) en lugar de URLs escritas manualmente.
-- Separación de responsabilidades entre modelo, controlador, vista y servicio.
-- Mensajes de retroalimentación al usuario (éxito / error) mediante flash messages y notificaciones tipo pop-up.
-
 ---
-Desarrollado por Eduardo Palma - Luis Muñoz - Brayan Varas — Evaluación Sumativa Unidad 2, Desarrollo Web con Framework.
+Desarrollado por Eduardo Palma - Luis Muñoz - Brayan Varas — Evaluación Sumativa Unidad 3, Desarrollo Web con Framework.
