@@ -9,3 +9,4 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::post('/proyectos', [ProjectController::class, 'store']);
+Route::get('/proyectos', [ProjectController::class, 'index']);

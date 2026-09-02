@@ -8,12 +8,11 @@ use App\Models\Project;
 
 class ProjectController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        //
+        $proyectos = Project::all();
+
+        return response()->json($proyectos, 200);
     }
 
     
