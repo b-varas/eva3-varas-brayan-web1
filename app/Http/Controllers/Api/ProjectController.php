@@ -35,12 +35,15 @@ class ProjectController extends Controller
         return response()->json($proyecto, 201);
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(string $id)
     {
-        //
+        $proyecto = Project::find($id);
+
+        if (!$proyecto) {
+            return response()->json(['message' => 'Proyecto no encontrado'], 404);
+        }
+
+        return response()->json($proyecto, 200);
     }
 
     
